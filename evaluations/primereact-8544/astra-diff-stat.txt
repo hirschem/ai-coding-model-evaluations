@@ -1,0 +1,3 @@
+﻿ components/lib/overlaypanel/OverlayPanel.js      |  21 ++--
+ components/lib/overlaypanel/OverlayPanel.spec.js | 148 +++++++++++++++++++++++
+ 2 files changed, 160 insertions(+), 9 deletions(-)

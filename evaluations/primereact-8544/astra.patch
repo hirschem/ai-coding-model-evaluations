@@ -1,0 +1,231 @@
+﻿diff --git a/components/lib/overlaypanel/OverlayPanel.js b/components/lib/overlaypanel/OverlayPanel.js
+index 4f8fcfe58..b5a50820a 100644
+--- a/components/lib/overlaypanel/OverlayPanel.js
++++ b/components/lib/overlaypanel/OverlayPanel.js
+@@ -28,7 +28,7 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+     const attributeSelector = React.useRef('');
+     const overlayRef = React.useRef(null);
+     const currentTargetRef = React.useRef(null);
+-    const isPanelClicked = React.useRef(false);
++    const panelClickEvent = React.useRef(null);
+     const styleElement = React.useRef(null);
+     const overlayEventListener = React.useRef(null);
+ 
+@@ -38,11 +38,11 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+         listener: (event, { type, valid }) => {
+             if (valid) {
+                 if (type === 'outside') {
+-                    if (props.dismissable && !isPanelClicked.current) {
++                    if (props.dismissable && panelClickEvent.current !== event) {
+                         hide();
+                     }
+ 
+-                    isPanelClicked.current = false;
++                    panelClickEvent.current = null;
+                 } else if (context.hideOverlaysOnDocumentScrolling) {
+                     hide();
+                 } else if (!DomHandler.isDocument(event.target)) {
+@@ -79,7 +79,7 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+     };
+ 
+     const onPanelClick = (event) => {
+-        isPanelClicked.current = true;
++        onContentClick(event);
+ 
+         OverlayService.emit('overlay-click', {
+             originalEvent: event,
+@@ -87,8 +87,9 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+         });
+     };
+ 
+-    const onContentClick = () => {
+-        isPanelClicked.current = true;
++    const onContentClick = (event) => {
++        // Protect only this event, even if it never bubbles to the outside-click listener.
++        panelClickEvent.current = event.nativeEvent || event;
+     };
+ 
+     const toggle = (event, target) => {
+@@ -116,7 +117,9 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+             setVisibleState(true);
+ 
+             overlayEventListener.current = (e) => {
+-                !isOutsideClicked(e.target) && (isPanelClicked.current = true);
++                if (!isOutsideClicked(e.target)) {
++                    onContentClick(e.originalEvent);
++                }
+             };
+ 
+             OverlayService.on('overlay-click', overlayEventListener.current);
+@@ -125,6 +128,7 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+ 
+     const hide = () => {
+         setVisibleState(false);
++        panelClickEvent.current = null;
+ 
+         OverlayService.off('overlay-click', overlayEventListener.current);
+         overlayEventListener.current = null;
+@@ -293,8 +297,7 @@ export const OverlayPanel = React.forwardRef((inProps, ref) => {
+         const contentProps = mergeProps(
+             {
+                 className: cx('content'),
+-                onClick: (e) => onContentClick(e),
+-                onMouseDown: onContentClick
++                onClick: (e) => onContentClick(e)
+             },
+             OverlayPanelBase.getOtherProps(props),
+             ptm('content')
+diff --git a/components/lib/overlaypanel/OverlayPanel.spec.js b/components/lib/overlaypanel/OverlayPanel.spec.js
+new file mode 100644
+index 000000000..94b867e7c
+--- /dev/null
++++ b/components/lib/overlaypanel/OverlayPanel.spec.js
+@@ -0,0 +1,148 @@
++import * as React from 'react';
++import '@testing-library/jest-dom';
++import { act, fireEvent, render, screen } from '@testing-library/react';
++import userEvent from '@testing-library/user-event';
++import { PrimeReactProvider } from '../api/Api';
++import { Paginator } from '../paginator/Paginator';
++import { OverlayPanel } from './OverlayPanel';
++
++function Example({ panelProps, cssTransition }) {
++    const panel = React.useRef(null);
++    const nested = React.useRef(null);
++    const [first, setFirst] = React.useState(0);
++
++    return (
++        <PrimeReactProvider value={{ cssTransition }}>
++            <button onClick={(event) => panel.current.toggle(event)}>Toggle panel</button>
++            <button>Outside</button>
++            <OverlayPanel ref={panel} {...panelProps}>
++                <button>Inside</button>
++                <input aria-label="Text" />
++                <button onClick={(event) => event.stopPropagation()}>Stop propagation</button>
++                <Paginator first={first} rows={10} totalRecords={30} onPageChange={(event) => setFirst(event.first)} />
++                <button onClick={(event) => nested.current.toggle(event)}>Toggle nested</button>
++            </OverlayPanel>
++            <OverlayPanel ref={nested}>
++                <button>Nested content</button>
++            </OverlayPanel>
++        </PrimeReactProvider>
++    );
++}
++
++describe.each([true, false])('OverlayPanel (cssTransition=%s)', (cssTransition) => {
++    let user;
++
++    beforeEach(() => {
++        jest.useFakeTimers();
++        user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
++        // JSDOM has no layout; visible overlays otherwise appear to have no offset parent.
++        jest.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function () {
++            return this.parentElement;
++        });
++    });
++
++    afterEach(() => {
++        jest.clearAllTimers();
++        jest.useRealTimers();
++        jest.restoreAllMocks();
++    });
++
++    const finishTransition = () => act(() => jest.advanceTimersByTime(250));
++
++    const open = async (panelProps) => {
++        render(<Example panelProps={panelProps} cssTransition={cssTransition} />);
++        await user.click(screen.getByRole('button', { name: 'Toggle panel' }));
++        finishTransition();
++        expect(screen.getByRole('button', { name: 'Inside' })).toBeVisible();
++    };
++
++    const dismiss = async () => {
++        await user.click(screen.getByRole('button', { name: 'Outside' }));
++        finishTransition();
++        expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
++        expect(screen.getByRole('button', { name: 'Outside' })).toHaveFocus();
++    };
++
++    test('dismisses on the first outside click without interaction', async () => {
++        await open();
++        await dismiss();
++    });
++
++    test.each(['Inside', 'Stop propagation', 'Next Page'])('dismisses on the first outside click after clicking %s', async (name) => {
++        await open();
++        await user.click(screen.getByRole('button', { name }));
++        expect(screen.getByRole('button', { name: 'Inside' })).toBeVisible();
++        await dismiss();
++    });
++
++    test('preserves input focus and keyboard interaction', async () => {
++        await open();
++        const input = screen.getByRole('textbox', { name: 'Text' });
++
++        await user.type(input, 'hello');
++        expect(input).toHaveFocus();
++        expect(input).toHaveValue('hello');
++        await user.tab({ shift: true });
++        expect(screen.getByRole('button', { name: 'Inside' })).toHaveFocus();
++        await user.keyboard('{Enter}');
++        await dismiss();
++    });
++
++    test('does not carry an unfinished pointer interaction into the next click', async () => {
++        await open();
++        fireEvent.mouseDown(screen.getByRole('button', { name: 'Inside' }));
++        fireEvent.mouseUp(screen.getByRole('button', { name: 'Outside' }));
++        await dismiss();
++    });
++
++    test('keeps the parent open for portaled nested overlay clicks', async () => {
++        await open();
++        await user.click(screen.getByRole('button', { name: 'Toggle nested' }));
++        finishTransition();
++        const content = screen.getByRole('button', { name: 'Nested content' });
++
++        expect(screen.getByRole('button', { name: 'Inside' }).closest('.p-overlaypanel')).not.toContainElement(content);
++        await user.click(content);
++        expect(content).toHaveFocus();
++        expect(screen.getByRole('button', { name: 'Inside' })).toBeVisible();
++        await dismiss();
++        expect(screen.queryByRole('button', { name: 'Nested content' })).not.toBeInTheDocument();
++    });
++
++    test('respects dismissable=false and the close button', async () => {
++        await open({ dismissable: false, showCloseIcon: true });
++        await user.click(screen.getByRole('button', { name: 'Inside' }));
++        await user.click(screen.getByRole('button', { name: 'Outside' }));
++        expect(screen.getByRole('button', { name: 'Inside' })).toBeVisible();
++        await user.click(screen.getByRole('button', { name: 'Close' }));
++        finishTransition();
++        expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
++    });
++
++    test('ignores outside right clicks and respects closeOnEscape=false', async () => {
++        await open({ closeOnEscape: false });
++        await user.click(screen.getByRole('button', { name: 'Inside' }));
++        fireEvent.click(screen.getByRole('button', { name: 'Outside' }), { button: 2, which: 3 });
++        await user.keyboard('{Escape}');
++        expect(screen.getByRole('button', { name: 'Inside' })).toBeVisible();
++        await dismiss();
++    });
++
++    test('preserves Escape and trigger toggling across reopening', async () => {
++        await open();
++        await user.click(screen.getByRole('button', { name: 'Inside' }));
++        await user.keyboard('{Escape}');
++        finishTransition();
++        expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
++        const trigger = screen.getByRole('button', { name: 'Toggle panel' });
++
++        await user.click(trigger);
++        finishTransition();
++        await user.click(trigger);
++        finishTransition();
++        expect(screen.queryByRole('button', { name: 'Inside' })).not.toBeInTheDocument();
++        await user.click(trigger);
++        finishTransition();
++        await dismiss();
++    });
++});
