@@ -1,7 +1,10 @@
-# AI Coding Model Evaluations
+﻿# AI Coding Model Evaluations
 
 Comparative evaluations of AI coding agents solving real software defects in open-source codebases.
 
+![Side-by-side AI coding agent evaluation showing Gemini in OpenCode and Astra in Codex](./assets/cleanui-agent-comparison.png)
+
+*Gemini 3.8 Flash and GPT-6 Astra independently solving the same CleanUI accessibility issue from equivalent repository states.*
 This repository documents four controlled evaluations in which multiple AI coding models received the same software-engineering task against equivalent repository states. I reviewed the resulting implementations using source-code analysis, Git diffs, automated tests, browser behavior, and regression-oriented verification.
 
 The goal was not to judge which response *looked* more convincing. The goal was to determine which implementation actually solved the problem with the strongest combination of correctness, scope, maintainability, and verifiable behavior.
@@ -23,9 +26,9 @@ This approach treats AI-generated code the same way production engineering work 
 
 ## Case Studies
 
-### [CleanUI #160 — Dropdown Keyboard & Focus Accessibility](./evaluations/cleanui-160/)
+### [CleanUI #160 â€” Dropdown Keyboard & Focus Accessibility](./evaluations/cleanui-160/)
 
-**Vue · TypeScript · Accessibility · Keyboard Interaction · Browser Verification**
+**Vue Â· TypeScript Â· Accessibility Â· Keyboard Interaction Â· Browser Verification**
 
 Evaluation of a dropdown/context-menu accessibility defect involving keyboard activation, focus restoration, ARIA semantics, disabled state, and menu-item focus.
 
@@ -35,9 +38,9 @@ The strongest solution preserved native interactive elements as the single tab s
 
 ---
 
-### [DotaGraph #87 — Escape-Key State Preservation](./evaluations/dotagraph-87/)
+### [DotaGraph #87 â€” Escape-Key State Preservation](./evaluations/dotagraph-87/)
 
-**React · TypeScript · Event Propagation · E2E Testing**
+**React Â· TypeScript Â· Event Propagation Â· E2E Testing**
 
 Evaluation of an Escape-key bug where closing Search could propagate the same event into application-level handlers and unintentionally alter selected hero or matchup state.
 
@@ -47,9 +50,9 @@ The strongest solution isolated the problem at the event boundary and backed a m
 
 ---
 
-### [PrimeReact #8476 — Dynamic Column Reordering State](./evaluations/primereact-8476/)
+### [PrimeReact #8476 â€” Dynamic Column Reordering State](./evaluations/primereact-8476/)
 
-**React · JavaScript · State Synchronization · Dynamic Components**
+**React Â· JavaScript Â· State Synchronization Â· Dynamic Components**
 
 Evaluation of DataTable column-order state when the rendered set of columns changes after a user has established an order through drag-and-drop.
 
@@ -59,9 +62,9 @@ The comparison focused on distinguishing structural changes to the available col
 
 ---
 
-### [PrimeReact #8544 — Overlay Outside-Click Handling](./evaluations/primereact-8544/)
+### [PrimeReact #8544 â€” Overlay Outside-Click Handling](./evaluations/primereact-8544/)
 
-**React · JavaScript · Event Lifecycle · Regression Testing**
+**React Â· JavaScript Â· Event Lifecycle Â· Regression Testing**
 
 Evaluation of an overlay-dismissal defect where persistent internal click state could incorrectly suppress a later outside click.
 
@@ -92,7 +95,7 @@ AI coding agents can produce implementations that are syntactically correct, wel
 
 Reliable AI-assisted engineering therefore requires an evaluation loop:
 
-**Reproduce → establish evidence → isolate → hypothesize → implement → regression test → verify behavior → preserve evidence**
+**Reproduce â†’ establish evidence â†’ isolate â†’ hypothesize â†’ implement â†’ regression test â†’ verify behavior â†’ preserve evidence**
 
 These case studies demonstrate that process on real code rather than synthetic coding exercises.
 
@@ -100,18 +103,18 @@ These case studies demonstrate that process on real code rather than synthetic c
 
 ```text
 ai-coding-model-evaluations/
-├── README.md
-├── evaluations/
-│   ├── cleanui-160/
-│   │   ├── README.md
-│   │   ├── issue.png
-│   │   ├── astra.patch
-│   │   ├── gemini.patch
-│   │   └── screenshots/
-│   ├── dotagraph-87/
-│   ├── primereact-8476/
-│   └── primereact-8544/
-└── methodology/
+â”œâ”€â”€ README.md
+â”œâ”€â”€ evaluations/
+â”‚   â”œâ”€â”€ cleanui-160/
+â”‚   â”‚   â”œâ”€â”€ README.md
+â”‚   â”‚   â”œâ”€â”€ issue.png
+â”‚   â”‚   â”œâ”€â”€ astra.patch
+â”‚   â”‚   â”œâ”€â”€ gemini.patch
+â”‚   â”‚   â””â”€â”€ screenshots/
+â”‚   â”œâ”€â”€ dotagraph-87/
+â”‚   â”œâ”€â”€ primereact-8476/
+â”‚   â””â”€â”€ primereact-8544/
+â””â”€â”€ methodology/
 ```
 
 Each case-study directory contains the preserved implementation evidence available for that evaluation, along with my technical analysis.
